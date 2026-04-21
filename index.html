@@ -2,70 +2,100 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Velvet Void OS</title>
+    <title>Google Docs - Loading...</title>
     <style>
         :root { --bg: #050505; --panel: #111; --accent: #bb86fc; --text: #eee; }
-        body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { margin:0; padding:0; background:#fff; color:#000; font-family: 'Arial', sans-serif; overflow: hidden; }
+        
+        /* THE DECOY UI - Looks like a loading Google Doc */
+        #decoy { position: fixed; top:0; left:0; width:100%; height:100%; background:#fff; z-index: 9999; display: flex; flex-direction: column; align-items: center; padding-top: 100px; cursor: pointer; }
+        .doc-header { width: 80%; height: 40px; background: #f1f3f4; margin-bottom: 20px; border-radius: 4px; }
+        .doc-line { width: 60%; height: 15px; background: #f1f3f4; margin-bottom: 10px; border-radius: 2px; }
+        .enter-btn { margin-top: 50px; padding: 15px 30px; border: 1px solid #dadce0; border-radius: 4px; color: #70757a; font-size: 14px; background: #fff; }
+
+        /* THE ACTUAL OS UI - Hidden until jump */
+        #os-ui { display:none; flex-direction: column; height: 100vh; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; }
         .nav-bar { padding: 12px 20px; background: var(--panel); display: flex; gap: 10px; border-bottom: 1px solid #222; align-items: center; }
         #url-input { flex-grow: 1; background: #000; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 6px; outline: none; }
         .search-btn { background: var(--accent); color: #000; border: none; padding: 10px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; }
         #viewport { flex-grow: 1; background: #fff; }
         iframe { width: 100%; height: 100%; border: none; }
         #taskbar { height: 40px; background: #000; display: flex; align-items: center; padding: 0 20px; border-top: 1px solid #222; }
-        .task-link { margin-right: 15px; font-size: 12px; cursor: pointer; color: #555; }
-        #settings { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; background: #1a1a1a; padding: 25px; border: 1px solid var(--accent); display: none; z-index: 1000; }
-        select, .save-btn { width: 100%; padding: 10px; margin-top: 10px; background: #000; color: #fff; border: 1px solid #333; }
-        .save-btn { background: var(--accent); color: #000; font-weight: bold; cursor: pointer; border: none; margin-top: 15px; }
     </style>
 </head>
 <body>
-    <div class="nav-bar">
-        <input type="text" id="url-input" placeholder="Search the void...">
-        <button class="search-btn" onclick="launch()">SEARCH</button>
+
+    <!-- DECOY LAYER -->
+    <div id="decoy" onclick="executeJump()">
+        <div class="doc-header"></div>
+        <div class="doc-line"></div>
+        <div class="doc-line"></div>
+        <div class="doc-line" style="width: 40%;"></div>
+        <button class="enter-btn">Connection timed out. Click to retry.</button>
     </div>
-    <div id="viewport">
-        <iframe id="main-frame" src="about:blank"></iframe>
-    </div>
-    <div id="taskbar">
-        <span class="task-link" onclick="document.getElementById('settings').style.display='block'">Settings</span>
-        <span class="task-link" onclick="location.reload()">Refresh</span>
-    </div>
-    <div id="settings">
-        <h3 style="margin:0; color:var(--accent);">Settings</h3>
-        <select id="engine-select">
-            <option value="https://duckduckgo.com/html/?q=">DuckDuckGo (Safe Mode)</option>
-            <option value="https://www.bing.com/search?q=">Bing</option>
-            <option value="https://www.google.com/search?q=">Google</option>
-        </select>
-        <div style="margin-top:10px; display:flex; justify-content:space-between;">
-            <span>Cloak</span>
-            <input type="checkbox" id="cloak">
+
+    <!-- VELVET VOID OS LAYER -->
+    <div id="os-ui">
+        <div class="nav-bar">
+            <input type="text" id="url-input" placeholder="Search the void...">
+            <button class="search-btn" onclick="launch()">SEARCH</button>
         </div>
-        <button class="save-btn" onclick="save()">SAVE</button>
+        <div id="viewport">
+            <iframe id="main-frame" src="about:blank"></iframe>
+        </div>
+        <div id="taskbar">
+            <span style="font-size:12px; color:#555;">OS STATUS: <span style="color:var(--accent)">STEALTH ENABLED</span></span>
+        </div>
     </div>
+
     <script>
-        let config = JSON.parse(localStorage.getItem('vv_config')) || { engine: 'https://duckduckgo.com/html/?q=', cloak: false };
-        function save() {
-            config.engine = document.getElementById('engine-select').value;
-            config.cloak = document.getElementById('cloak').checked;
-            localStorage.setItem('vv_config', JSON.stringify(config));
-            document.getElementById('settings').style.display='none';
-            if(config.cloak) {
-                let win = window.open('about:blank','_blank');
-                win.document.body.style.margin='0';
+        // CONFIG - Cloak is ALWAYS true
+        let config = { engine: 'https://duckduckgo.com/html/?q=', cloak: true };
+
+        function executeJump() {
+            // 1. Open the about:blank tab
+            let win = window.open('about:blank', '_blank');
+            if (win) {
+                // 2. Style and populate the blank tab
+                win.document.title = "Google Docs"; // Decoy title for the new tab
+                win.document.body.style.margin = '0';
+                win.document.body.style.height = '100vh';
+                win.document.body.style.overflow = 'hidden';
+
                 let f = win.document.createElement('iframe');
-                f.style.width='100vw';f.style.height='100vh';f.style.border='none';f.src=window.location.href;
+                f.style.width = '100vw';
+                f.style.height = '100vh';
+                f.style.border = 'none';
+                // Point it back to our current URL but in OS mode
+                f.src = window.location.href + "?mode=os"; 
+                
                 win.document.body.appendChild(f);
+
+                // 3. Redirect the original tab to a safe decoy
                 window.location.replace("https://classroom.google.com");
+            } else {
+                alert("Pop-up blocked! Please allow pop-ups for the stealth jump to work.");
             }
         }
+
+        // Check if we are inside the cloaked iframe or the initial decoy
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('mode') === 'os') {
+            document.getElementById('decoy').style.display = 'none';
+            document.getElementById('os-ui').style.display = 'flex';
+        }
+
         function launch() {
             let input = document.getElementById('url-input').value.trim();
-            if(!input) return;
+            if (!input) return;
             let target = (input.includes('.') && !input.includes(' ')) ? (input.startsWith('http') ? input : 'https://'+input) : (config.engine + encodeURIComponent(input));
             document.getElementById('main-frame').src = '/proxy?url=' + encodeURIComponent(target);
         }
-        document.getElementById('engine-select').value = config.engine;
+
+        // Handle 'Enter' key
+        document.getElementById('url-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') launch();
+        });
     </script>
 </body>
 </html>
