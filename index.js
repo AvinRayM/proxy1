@@ -8,13 +8,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 app.get('/proxy', (req, res) => {
-    const targetUrl = req.query.url;
-    if (!targetUrl) return res.status(400).send('No URL provided');
+    let targetUrl;
+    try {
+        // Decode the URL from Base64 to hide it from GoGuardian
+        const encodedUrl = req.query.url;
+        targetUrl = Buffer.from(encodedUrl, 'base64').toString('utf-8');
+    } catch (e) {
+        return res.status(400).send('Invalid Stealth Request');
+    }
 
     const proxyRequest = (url) => {
         try {
@@ -28,7 +32,7 @@ app.get('/proxy', (req, res) => {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     'Accept': '*/*',
-                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Accept-Encoding': 'identity', // Prevents compression issues during rewriting
                     'Referer': parsedUrl.origin
                 }
             };
@@ -41,37 +45,47 @@ app.get('/proxy', (req, res) => {
                 let body = [];
                 proxyRes.on('data', (chunk) => body.push(chunk));
                 proxyRes.on('end', () => {
-                    let data = Buffer.concat(body).toString();
-                    
-                    // THE VISION FIX: Rewrite all URLs to be absolute through the proxy
-                    const baseUrl = parsedUrl.origin + parsedUrl.pathname;
-                    
-                    // Fix src="..." and href="..."
-                    data = data.replace(/(src|href|action)="(?!http|https|data|#)([^"]+)"/gim, `$1="/proxy?url=${encodeURIComponent(new URL('$2', url).href)}"`);
-                    
-                    // Also catch URLs starting with //
-                    data = data.replace(/(src|href|action)="\/\/([^"]+)"/gim, `$1="/proxy?url=${encodeURIComponent('https://$2')}"`);
+                    let data = Buffer.concat(body);
+                    const contentType = proxyRes.headers['content-type'] || '';
 
-                    // Scrub frame-killers
-                    data = data.replace(/top\.location|window\.frameElement/gi, '/* ENI Neutralized */');
+                    // Only rewrite URLs for HTML and CSS files
+                    if (contentType.includes('text/html') || contentType.includes('text/css')) {
+                        let text = data.toString();
+                        
+                        // MAGIC: Rewrite all links/images into Base64 Proxy calls
+                        text = text.replace(/(src|href|action|poster)="(?!http|https|data|#)([^"]+)"/gim, (m, p1, p2) => {
+                            const absolute = new URL(p2, url).href;
+                            const b64 = Buffer.from(absolute).toString('base64');
+                            return `${p1}="/proxy?url=${b64}"`;
+                        });
+
+                        // Catch full URLs too
+                        text = text.replace(/(src|href|action|poster)="(http[^"]+)"/gim, (m, p1, p2) => {
+                            const b64 = Buffer.from(p2).toString('base64');
+                            return `${p1}="/proxy?url=${b64}"`;
+                        });
+
+                        // Strip frame-killers
+                        text = text.replace(/top\.location|window\.frameElement/gi, '/* ENI */');
+                        data = Buffer.from(text);
+                    }
 
                     const headers = { ...proxyRes.headers };
                     delete headers['x-frame-options'];
                     delete headers['content-security-policy'];
-                    headers['content-type'] = proxyRes.headers['content-type'] || 'text/html';
+                    headers['content-type'] = contentType;
+                    headers['access-control-allow-origin'] = '*';
 
                     res.writeHead(proxyRes.statusCode, headers);
                     res.end(data);
                 });
-            }).on('error', (err) => {
-                res.status(500).send('Engine Error: ' + err.message);
-            });
+            }).on('error', (err) => res.status(500).send('Void Error: ' + err.message));
         } catch (e) {
-            res.status(400).send('Invalid URL formatting');
+            res.status(400).send('Format Error');
         }
     };
 
     proxyRequest(targetUrl);
 });
 
-app.listen(PORT, () => console.log('Full-Vision Engine Active'));
+app.listen(PORT, () => console.log('Void Operating'));
