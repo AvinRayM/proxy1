@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Velvet Void OS</title>
+    <style>
+        :root { --bg: #0a0a0a; --panel: #151515; --accent: #bb86fc; --text: #eee; }
+        body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .nav-bar { padding: 15px 20px; background: var(--panel); display: flex; gap: 10px; border-bottom: 1px solid #222; align-items: center; }
+        #url-input { flex-grow: 1; background: #000; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 4px; outline: none; }
+        .nav-btn { background: var(--accent); color: #000; border: none; padding: 10px 25px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        
+        #viewport { flex-grow: 1; background: #fff; }
+        iframe { width: 100%; height: 100%; border: none; }
+
+        #taskbar { height: 45px; background: #111; display: flex; align-items: center; padding: 0 20px; border-top: 1px solid #222; }
+        .task-btn { margin-right: 15px; font-size: 13px; cursor: pointer; color: #888; }
+        .task-btn:hover { color: var(--accent); }
+
+        #settings-box { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 320px; background: #1a1a1a; padding: 25px; border: 1px solid var(--accent); display: none; z-index: 1000; }
+        select, .save-btn { width: 100%; padding: 10px; margin-top: 10px; background: #000; color: #fff; border: 1px solid #333; }
+        .save-btn { background: var(--accent); color: #000; font-weight: bold; cursor: pointer; border: none; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="nav-bar">
+        <input type="text" id="url-input" placeholder="Search or type a URL...">
+        <button class="nav-btn" onclick="launch()">SEARCH</button>
+    </div>
+
+    <div id="viewport">
+        <iframe id="main-frame" src="about:blank"></iframe>
+    </div>
+    
+    <div id="taskbar">
+        <span class="task-btn" onclick="toggleSettings()">Settings</span>
+        <span class="task-btn" onclick="location.reload()">Refresh</span>
+    </div>
+
+    <div id="settings-box">
+        <h3 style="margin:0 0 15px 0; color:var(--accent);">Settings</h3>
+        <label style="font-size:12px;">Search Engine</label>
+        <select id="engine-select">
+            <option value="https://duckduckgo.com/?q=">DuckDuckGo</option>
+            <option value="https://www.google.com/search?q=">Google</option>
+            <option value="https://www.brave.com/search?q=">Brave</option>
+            <option value="https://www.bing.com/search?q=">Bing</option>
+        </select>
+        <div style="margin-top:15px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px;">about:blank Cloak</span>
+            <input type="checkbox" id="cloak-toggle">
+        </div>
+        <button class="save-btn" onclick="saveSettings()">SAVE</button>
+    </div>
+
+    <script>
+        let config = JSON.parse(localStorage.getItem('vv_config')) || { engine: 'https://duckduckgo.com/?q=', cloak: false };
+
+        function toggleSettings() {
+            const el = document.getElementById('settings-box');
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function saveSettings() {
+            config.engine = document.getElementById('engine-select').value;
+            config.cloak = document.getElementById('cloak-toggle').checked;
+            localStorage.setItem('vv_config', JSON.stringify(config));
+            
+            if (config.cloak) {
+                let win = window.open('about:blank', '_blank');
+                if (win) {
+                    win.document.body.style.margin = '0';
+                    let f = win.document.createElement('iframe');
+                    f.style.width='100vw'; f.style.height='100vh'; f.style.border='none';
+                    f.src = window.location.href;
+                    win.document.body.appendChild(f);
+                    window.location.replace("https://classroom.google.com");
+                }
+            }
+            toggleSettings();
+        }
+
+        function launch() {
+            const input = document.getElementById('url-input').value.trim();
+            if (!input) return;
+            
+            let target;
+            if (input.includes('.') && !input.includes(' ')) {
+                target = input.startsWith('http') ? input : 'https://' + input;
+            } else {
+                target = config.engine + encodeURIComponent(input);
+            }
+            
+            // Fixed relative pathing for the proxy
+            document.getElementById('main-frame').src = '/proxy?url=' + encodeURIComponent(target);
+        }
+
+        document.getElementById('engine-select').value = config.engine;
+        document.getElementById('cloak-toggle').checked = config.cloak;
+    </script>
+</body>
+</html>
